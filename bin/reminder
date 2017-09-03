@@ -1,0 +1,38 @@
+#!/usr/bin/env perl6
+
+use v6;
+use LWP::Simple;
+use JSON::Tiny;
+
+#| Output to a file 
+sub MAIN(Str :$output, Str :$user, Str :$token, Str :$api, Str :$title) {
+    my %headers = 'PRIVATE-TOKEN' => $token;
+    my $out = "# $title\n\n";
+    for $user.split(",") -> $user {
+        %headers{'SUDO'} = $user;
+        my $html = LWP::Simple.get($api ~ '/api/v4/todos', %headers);
+        my $json = from-json($html);
+        $out ~= '## [@' ~ "{ $user }]({ $api }/$user)\n\n";
+        my %by-project;
+        for @$json -> $issue {
+            my $key = $issue{'project'}{'name'};
+            say "KEY: $key";
+            %by-project{$key} ||= [];
+            %by-project{$key}.push: $issue;
+        }
+        #say %by-project.values;
+        for %by-project.sort -> (:$key, :@value) {
+            #my @issues = %by-project{$project};
+            $out ~= "### $key ({ @value.elems })\n\n";
+            #say @issues[0].elems;
+            #say @issues[0][0].WHAT;
+            for @value -> $issue {
+                #say $issue[0]{'project'}{'name'};
+                #say $issue{'project'}{'name'};
+                $out ~= "- { $issue{'target'}{'title'} } [[link]({ $issue{'target'}{'web_url'} })]\n";
+            }
+            $out ~= "\n";
+        }
+    }
+    spurt $output, $out;
+}
